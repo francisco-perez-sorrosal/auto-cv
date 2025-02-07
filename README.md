@@ -20,4 +20,16 @@ pixi update
 
 ## Usage
 
-(Add usage instructions as the project develops)
+Install the crew:
+
+```pixi run crewai install```
+
+Run the crew:
+
+```pixi run crewai run```
+
+## Streamlit app
+
+To run the Streamlit app: 
+
+```pixi run streamlit run src/auto_cv/ui/main_app.py```
