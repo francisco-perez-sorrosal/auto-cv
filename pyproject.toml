@@ -1,0 +1,48 @@
+[project]
+authors = [{name = "Francisco Perez-Sorrosal", email = "fperezsorrosal@gmail.com"}]
+description = "An agent to help me with my CV creation"
+name = "auto-cv"
+requires-python = ">= 3.11,<3.13"
+version = "0.1.0"
+dependencies = [
+    "rich>=13.9.3,<14", 
+    "streamlit>=1.41", 
+    "crewai>=0.100", 
+    "llm-foundation>0.0.26",
+    "selenium>=4.16.1",
+    "beautifulsoup4>=4.12.3",
+    "requests>=2.31.0",
+    "jsonlines>=3.1.0", 
+    "crewai-tools>=0.33.0,<1.0"]
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+
+[tool.pixi.pypi-dependencies]
+auto-cv = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+ui="pixi run shiny run src/auto-cv/ui/main_app.py"
+
+[tool.pixi.dependencies]
+pypdf = ">=5.0.1,<6"
+faiss = ">=1.8.0,<2"
+packaging = "==23.2"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/auto_cv"]
+
+[project.scripts]
+auto_cv = "auto_cv.main:run"
+run_crew = "auto_cv.main:run"
+train = "auto_cv.main:train"
+replay = "auto_cv.main:replay"
+test = "auto_cv.main:test"

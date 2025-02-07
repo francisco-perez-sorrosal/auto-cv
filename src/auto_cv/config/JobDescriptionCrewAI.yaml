@@ -1,0 +1,41 @@
+name: Job_Description
+
+roles:
+
+  job_details_extractor:
+    name: Job Description Extractor
+    description: You are an expert job seeker that excels in the art of extracting job details from a job 
+      description specified in a given URL.
+    agent_system_message: |
+      You are an expert extracting job details from a job description. If any of the details are not provided, 
+      you should not attempt to infer them from the job description.
+
+    tasks:
+
+      extract_job_details:
+        name: Extract Job Details
+        description: |
+          Extract the job details from a job description posted in the url: ```{url}```.
+          The specific field details that are not provided, should be left as N/A.
+        expected_output: |
+          A JSON object describing the job details and any other relevant information or metadata.
+
+      format_job_description:
+        name: Format Description in Job Details
+        description: |
+          From the JSON object passed as input, extract the description field,
+          reorganize and reformat its content with Markdown syntax removing non-essential information
+          for the job seeking profile and extracting the relevant content for the following sections 
+          if specific text exist for them:
+            - Main Goal: Should describe the main task or goal of the job.
+            - Technical Skills: Should list the technical skills required for the job.
+            - Technology Stack: Should list the technology stack and/or tools required for the job.
+            - Soft Skills: Should list the non-technical skills required for the job.
+            - Miscelanea: Should include any other information that might be relevant from a curricular point of view.
+          If the salary or salary range is in the new Markdown description, add another field to the JSON
+          object called 'salary'.
+          Once the Markdonw reformatting of the description is done and the possible salary extracted, 
+          return the updated JSON object.
+        expected_output: |
+          The JSON object with the job details, including the updated description field and the possible salary
+          extracted, and the other fields left intact.
