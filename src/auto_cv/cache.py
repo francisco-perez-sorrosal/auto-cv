@@ -1,6 +1,7 @@
 import logging
 import os
 from pathlib import Path
+from typing import Any
 import jsonlines
 
 class BasicInMemoryCache:
@@ -47,14 +48,14 @@ class BasicInMemoryCache:
         # In-memory cache for faster lookups
         self._load_cache()
 
-    def _load_cache(self) -> dict[str, dict]:
+    def _load_cache(self) -> dict[str, Any]:
         """
         Load existing cache from JSONL file
         
         Returns:
             dict: Cached job descriptions
         """
-        self._cache = {}
+        self._cache: dict[str, Any] = {}
         
         if not self.cache_file.exists():
             return self._cache
@@ -71,7 +72,7 @@ class BasicInMemoryCache:
         
         return self._cache
     
-    def get(self, key_value: str) -> dict | None:
+    def get(self, key_value: str) -> dict[str, Any] | None:
         """
         Retrieve a cached item by its key
         
@@ -84,7 +85,7 @@ class BasicInMemoryCache:
         return self._cache.get(key_value)
     
 
-    def put(self, structure: dict) -> bool:
+    def put(self, structure: dict[str, Any]) -> bool:
         """
         Save an item to cache using the specified cache key name
         
