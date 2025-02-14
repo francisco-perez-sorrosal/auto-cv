@@ -20,6 +20,11 @@ pixi update
 
 ## Usage
 
+Run the job scrapper (selenium based):
+
+```pixi run python src/auto_cv/tools/web_scraper.py```
+
+
 Install the crew:
 
 ```pixi run crewai install```
@@ -30,6 +35,5 @@ Run the crew:
 
 ## Streamlit app
 
-To run the Streamlit app: 
 
 ```pixi run streamlit run src/auto_cv/ui/main_app.py```

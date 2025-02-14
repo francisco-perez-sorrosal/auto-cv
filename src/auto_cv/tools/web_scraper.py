@@ -1,24 +1,27 @@
-import logging
-import time
-import os
-from dotenv import load_dotenv
-from typing import Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
+import os
+import time
+from typing import Any, Dict, Optional, Tuple
 
-import requests
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from llm_foundation import logger
+import requests
 from selenium import webdriver
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    StaleElementReferenceException,
+    TimeoutException,
+    WebDriverException,
+)
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, TimeoutException, WebDriverException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 from auto_cv.cache import BasicInMemoryCache
-
-from llm_foundation import logger
 
 
 # Load environment variables from .env file
@@ -26,7 +29,6 @@ env_loaded: bool = load_dotenv()
 
 if not env_loaded:
     raise Exception("Failed to load environment variables from .env file")
-print(os.environ["LINKEDIN_USERNAME"])
 
 @dataclass
 class JobPostingExtractor:
@@ -41,13 +43,7 @@ class JobPostingExtractor:
     _driver: WebDriver | None = None
     
     def __post_init__(self):
-        """Initialize logging and setup chrome options"""
-        # logging.basicConfig(
-        #     level=logging.INFO, 
-        #     format='%(asctime)s - %(levelname)s: %(message)s'
-        # )
-        # self.logger = logging.getLogger(__name__)
-        
+        """Setup chrome options"""        
         if not self._driver:
             self._driver = self._setup_webdriver()
         
@@ -234,7 +230,7 @@ class JobPostingExtractor:
             job_details = {
                 "title": job_title.strip(),
                 "company": company_name.strip(),
-                "description": job_description.strip(),
+                "raw_description": job_description.strip(),
                 "url": url,
                 "extracted_at": datetime.now().isoformat()
             }
@@ -275,7 +271,7 @@ class JobPostingExtractor:
             return {
                 "title": job_title.text.strip() if job_title else "N/A",
                 "company": company_name.text.strip() if company_name else "N/A",
-                "description": job_description.text.strip() if job_description else "N/A"
+                "raw_description": job_description.text.strip() if job_description else "N/A"
             }
         
         except requests.RequestException as e:
@@ -309,11 +305,7 @@ class JobPostingExtractor:
 # Example usage
 if __name__ == "__main__":
     url = "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=3959722886"
-    # Initialize job description cache
-    # raw_job_description_cache = BasicInMemoryCache("auto-cv", 
-    #                                                 "raw_job_descriptions_cache", 
-    #                                                 "raw_job_descriptions.jsonl",
-    #                                                 cache_key_name="url")
+    url = "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4070067137"
     
     extractor = JobPostingExtractor()
     job_details = extractor.extract_raw_info_from(url)

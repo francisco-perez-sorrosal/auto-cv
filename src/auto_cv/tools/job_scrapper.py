@@ -1,6 +1,7 @@
 from crewai.tools import BaseTool
 
-from auto_cv.agents.web_scraper import JobPostingExtractor
+from auto_cv.cache import BasicInMemoryCache
+from auto_cv.tools.web_scraper import JobPostingExtractor
 from llm_foundation import logger
 
 class JobScrapperTool(BaseTool):
@@ -11,7 +12,8 @@ class JobScrapperTool(BaseTool):
         """
         Extract job details from a given URL.
         """
+        
         extractor = JobPostingExtractor()
-        job_details = extractor.extract(url)
-        logger.info(f"Job detains:\n{job_details}")
+        job_details, cache_hit = extractor.extract_raw_info_from(url)
+        logger.info(f"Job detains (cache hit: {cache_hit}):\n{job_details}")
         return job_details
