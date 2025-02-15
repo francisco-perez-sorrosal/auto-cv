@@ -1,19 +1,33 @@
-import streamlit as st
+from datetime import datetime
 import json
-from auto_cv.agents.web_scraper import JobPostingExtractor
-from auto_cv.crews import JobDescriptionExtractorCrew
-from auto_cv.data_models import JobDetails
+from typing import Any, Tuple
 
 from llm_foundation import logger
+import streamlit as st
+
+from auto_cv.cache import BasicInMemoryCache
+from auto_cv.crews import JobDescriptionExtractorCrew
+from auto_cv.data_models import JobDetails
+from auto_cv.utils import make_serializable
+
+# Set page configuration to wide mode by default
+st.set_page_config(page_title="Auto CV Job Description Extractor", layout="wide")
 
 # Predefined example LinkedIn job URLs
 EXAMPLE_URLS = {
     "Select an example URL": "",
     "Amazon test": "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=3959722886",
-    "Software Engineer - AI/ML at TechCorp": "https://www.linkedin.com/jobs/view/software-engineer-ai-ml-at-3959722886/",
+    "Amazon Test 2": "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4070067137",
 }
 
-def extract_job_description(url):
+extracted_job_description_cache = BasicInMemoryCache(
+    app_name="auto-cv", 
+    cache_subdir="extracted_job_descriptions_cache", 
+    cache_file="extracted_job_descriptions.jsonl", 
+    cache_key_name="url"
+)
+
+def extract_job_description_from_raw(url: str) -> dict[str, Any]:
     """
     Extract job description using the JobDescriptionExtractorCrew
     
@@ -21,19 +35,22 @@ def extract_job_description(url):
         url (str): URL of the job posting
     
     Returns:
-        dict: Extracted job details
+        Dictionary of job details (empty if extraction fails)
     """
+    
     try:
         # Initialize the crew
         crew = JobDescriptionExtractorCrew()
         
         # Kickoff the crew with the URL
-        result = crew.crew().kickoff(inputs={"url": url})
-        
-        return result
+        job_details = crew.crew().kickoff(inputs={"url": url})
+        if job_details.json_dict:
+            return job_details.json_dict
+        st.warning(f"No job details found in crew response")
+        return {}
     except Exception as e:
         st.error(f"Error extracting job description: {e}")
-        return None
+        return {}
 
 def display_job_basics(job_details: JobDetails):
     """
@@ -78,7 +95,7 @@ def display_job_descriptions(job_details: JobDetails):
         st.text_area(
             label="Raw Job Description", 
             value=job_details.raw_description or "No raw description available", 
-            height=400,  # Adjust height as needed
+            height=800,  # Adjust height as needed
             disabled=True  # Make it read-only
         )
     
@@ -86,7 +103,7 @@ def display_job_descriptions(job_details: JobDetails):
         st.subheader("Formatted Description")
         st.markdown(job_details.markdown_description or "No formatted description available")
 
-def main():
+def main()-> None:
     st.title("Job Description Extractor")
     
     # Dropdown for example URLs
@@ -105,40 +122,37 @@ def main():
     # Extract button
     if st.button("Extract Job Description"):
         if url:
-            # Show loading spinner
-            with st.spinner('Extracting job details...'):
-                # Extract job details
-                job_details = extract_job_description(url)
+            
+            # Check cache first
+            if extracted_job_description_cache.exists(url):
+                job_details = extracted_job_description_cache.get(url)
+                st.success(f"Retrieved previously extracted job description from cache: {url}")
+            else:
+                with st.spinner('Agent extracting job details...'):
+                    # Extract job details
+                    job_details = extract_job_description_from_raw(url)
             
             # Display results
-            if job_details:
+            if job_details and job_details != {}:
+                
                 st.success("Job description extracted successfully!")
                 
-                # Display raw JSON
-                with st.expander("Raw JSON"):
+                job_details = make_serializable(job_details)
+                with st.expander("Serializable JSON"):
                     st.json(job_details)
-                    
-                if job_details.json_dict:
-                    from datetime import datetime
-                    # When displaying JSON
-                    def json_serial(obj):
-                        """Custom JSON serializer for datetime objects"""
-                        if isinstance(obj, datetime):
-                            return obj.isoformat()
-                        raise TypeError(f"Type {type(obj)} not serializable")
-                        
-                    with st.expander("Dumped JSON"):
-                        json_output = json.dumps(job_details.json_dict, indent=2, default=json_serial)
-                        st.warning(f"JSON Output: {json_output}")
-                    
-                    job_details_pydantic = JobDetails.model_validate(job_details.json_dict)
-                                    
-                    # Display job stuff
-                    display_job_basics(job_details_pydantic)
-                    display_job_descriptions(job_details_pydantic)
+
+                extracted_job_description_cache_hit = extracted_job_description_cache.put(job_details)
+                if extracted_job_description_cache_hit:
+                    st.info(f"Job description with extractions from {url} added to cache")
+                                                    
+                job_details_pydantic = JobDetails.model_validate(job_details)
+                                
+                # Display job stuff
+                display_job_basics(job_details_pydantic)
+                display_job_descriptions(job_details_pydantic)
                     
             else:
-                st.error("Failed to extract job details.")
+                st.error("Failed to extract job details!!!")
         else:
             st.warning("Please enter a valid URL")
 

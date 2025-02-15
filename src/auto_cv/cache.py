@@ -1,9 +1,9 @@
-import logging
 import os
 from pathlib import Path
 from typing import Any
 import jsonlines
 
+from llm_foundation import logger
 class BasicInMemoryCache:
     """
     Manages caching of json objects to prevent redundant actions
@@ -46,7 +46,7 @@ class BasicInMemoryCache:
         self.cache_file = self.cache_dir / cache_file
         
         # In-memory cache for faster lookups
-        self._load_cache()
+        self._cache: dict[str, Any] = self._load_cache()
 
     def _load_cache(self) -> dict[str, Any]:
         """
@@ -55,10 +55,10 @@ class BasicInMemoryCache:
         Returns:
             dict: Cached job descriptions
         """
-        self._cache: dict[str, Any] = {}
+        cache: dict[str, Any] = {}
         
         if not self.cache_file.exists():
-            return self._cache
+            return cache
         
         try:
             with jsonlines.open(self.cache_file, mode='r') as reader:
@@ -66,11 +66,12 @@ class BasicInMemoryCache:
                     # Use the specified cache key name to create the cache index
                     cache_index = obj.get(self.cache_key_name)
                     if cache_index:
-                        self._cache[cache_index] = obj
+                        cache[cache_index] = obj
         except Exception as e:
-            logging.error(f"Error loading cache: {e}")
+            logger.error(f"Error loading cache: {e}")
         
-        return self._cache
+        logger.info(f"Loaded {len(cache)} items from cache {self.cache_file}")
+        return cache
     
     def get(self, key_value: str) -> dict[str, Any] | None:
         """
@@ -85,41 +86,42 @@ class BasicInMemoryCache:
         return self._cache.get(key_value)
     
 
-    def put(self, structure: dict[str, Any]) -> bool:
+    def put(self, serializable_structure: dict[str, Any], overwrite: bool = False) -> bool:
         """
         Save an item to cache using the specified cache key name
         
         Args:
-            structure (dict): Item details to be cached
+            serializable_structure (dict): Serializable structure to be cached
         
         Returns:
             bool: True if item was added to cache, False if item already exists
         """
-        try:
-            # Get the cache index using the specified cache key name
-            cache_index = structure.get(self.cache_key_name)
-            
-            if not cache_index:
-                logging.warning(f"No value found for cache key name '{self.cache_key_name}'")
-                return False
-            
-            # Check if the item already exists in the cache
-            if self.exists(cache_index):
-                logging.warning(f"Item with key {cache_index} already exists in cache. Skipping...")
-                return False
-            
-            # Update in-memory cache
-            self._cache[cache_index] = structure
+        
+        # Get the cache index using the specified cache key name
+        if not self.cache_key_name in serializable_structure:
+            raise KeyError(f"Cache key name '{self.cache_key_name}' not found in serializable structure")
+        
+        cache_index = serializable_structure[self.cache_key_name]        
+        
+        try:                        
+            if self.exists(str(cache_index)):
+                if not overwrite:
+                    logger.warning(f"Value found ({cache_index}) for cache key name '{self.cache_key_name}' but we can't overwrite")
+                    return False
+                logger.warning(f"Item with key {cache_index} already exists in cache. Overwriting...")
+
+            # Update in-memory cache possibly overwriting it
+            self._cache[str(cache_index)] = serializable_structure
             
             # Append to JSONL file
             with jsonlines.open(self.cache_file, mode='a') as writer:
-                writer.write(structure)
+                writer.write(serializable_structure)
             
-            logging.info(f"Cached new item with key: {cache_index}")
+            logger.info(f"Cached new item with key: {cache_index}")
             return True
         
         except Exception as e:
-            logging.error(f"Error saving to cache: {e}")
+            logger.error(f"Error saving to cache: {e}")
             return False
                         
     def exists(self, key_value: str) -> bool:

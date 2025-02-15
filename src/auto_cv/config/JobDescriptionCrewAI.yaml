@@ -24,15 +24,17 @@ roles:
         name: Extra information extraction
         description: |
           From the JSON object passed as input which represents the details of a job posting, 
-          use the description field, to extract the following fields if specific text exist for them:
+          use the 'raw_description' field, to extract the following fields as strings if specific 
+          text exist for them:
             - Location
             - Compensation, payment amount, salary or salary range
             - Hiring Manager
             - Job ID
+          If the content of any of those fields is not present, put the string "N/A" as its value.
+          Preserve the content for the other fields in the JSON object.
         expected_output: |
-          The original JSON enhanced with the new JSON attributes and values extracted. Use
-          these attribute names as keys: location, salary, hiring_manager and job_id. If the content of any of those attributes is not present, put the string "N/A" as its value. Finally, rename the original 'description' attribute to 'raw_description'.
-
+          A JSON object which contains the same fields as the original plus the new JSON fields
+           and values extracted, that is 'location', 'salary', 'hiring_manager' and 'job_id'.
 
       format_job_description:
         name: Format Description in Job Details
@@ -47,7 +49,10 @@ roles:
             - Technology Stack: Should list the technology stack and/or tools required for the job.
             - Soft Skills: Should list the non-technical skills required for the job.
             - Miscelanea: Should include any other information that might be relevant from a curricular point of view. If it is not relevant to fine-tune a CV/Resume, it should not be included.
-          Once the 'raw_description' field content has been reformatted and polished in Markdown, update the original JSON by adding this new content to a new attribute named 'markdown_description'. Do not change the other fields in the original JSON object passed.
-          Remember to escape special characters like the $ sign that may appear in salaries.
+          Once the markdown has been extracted, this will be the value of the field 'markdown_description'. 
+          Be very mindful and careful with the markdown content you extract. It must be valid to be included 
+          in a JSON object. Do not change the other fields in the original JSON object passed.
         expected_output: |
-          The JSON object with all the original the job detail fields, with a new attribute named 'markdown_description" which will have as a value the updated description field. Leave all the other fields intact.
+          A JSON object with all the original the job detail fields. The value of the field 
+          'markdown_description" will have as a value the updated description field. Leave all 
+          the other fields intact.

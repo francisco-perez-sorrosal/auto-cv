@@ -32,7 +32,10 @@ class JobDescriptionExtractorCrew():
     def extract_extra_fields_task(self) -> Task:
         agent = self.job_details_extractor()
         logger.info(f"Creating extra job description extractor task for agent {agent}")
-        return self.job_details_extractor_role.get_crew_ai_task("extract_extra_fields_from_job_description", agent, context=[self.extract_job_details_task()], output_json=JobDetails)
+        return self.job_details_extractor_role.get_crew_ai_task("extract_extra_fields_from_job_description", 
+                                                                agent, 
+                                                                context=[self.extract_job_details_task()], 
+                                                                output_json=JobDetails)
 
     @task
     def format_job_description_task(self) -> Task:

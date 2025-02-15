@@ -31,10 +31,10 @@ class JobDetails(BaseModel):
     
     # Metadata
     extracted_at: datetime = Field(default_factory=datetime.isoformat, description="Timestamp of job details extraction")
-    url_hash: str = Field(..., description="Hash of the job posting URL")
+    # url_hash: str = Field(..., description="Hash of the job posting URL")
     
     # Additional metadata for flexibility
-    extra_metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata or unstructured information")
+    # extra_metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata or unstructured information")
     
     @field_validator('url')
     def validate_url(cls, v):
