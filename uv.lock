@@ -212,7 +212,7 @@ requires-dist = [
     { name = "crewai", specifier = ">=0.100" },
     { name = "crewai-tools", specifier = ">=0.33.0,<1.0" },
     { name = "jsonlines", specifier = ">=3.1.0" },
-    { name = "llm-foundation", specifier = ">0.0.26" },
+    { name = "llm-foundation", specifier = ">0.0.27" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "rich", specifier = ">=13.9.3,<14" },
     { name = "selenium", specifier = ">=4.16.1" },
@@ -1862,7 +1862,7 @@ wheels = [
 
 [[package]]
 name = "llm-foundation"
-version = "0.0.27"
+version = "0.0.28"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "autogen" },
@@ -1881,9 +1881,9 @@ dependencies = [
     { name = "pydantic-yaml" },
     { name = "python-dotenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bb/75/0a056cdfa2291f3598293630e0a70f0c3d7954e2f9126e99d55303795439/llm_foundation-0.0.27.tar.gz", hash = "sha256:0a44cef73a6cebbcb044f44988a7e3fb4a7198f01ecf5bd4117775483aee3c70", size = 294981 }
+sdist = { url = "https://files.pythonhosted.org/packages/55/46/93364db5cddf21e5cb4ea161c1524be1a9d89437e184f7244f2ead8e2b7d/llm_foundation-0.0.28.tar.gz", hash = "sha256:cbde016963328302eba93c4cf25fc119f8eb777f85349d57161c4da778d5428a", size = 295007 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d7/8e/a151533be964f4396031223f6b328db9dfd07df417fdbc789a0944867fde/llm_foundation-0.0.27-py3-none-any.whl", hash = "sha256:199ba6b0f52bf89892f81b02dcafa760b7aceb7f1ac7f68debee521964f5f3a6", size = 14703 },
+    { url = "https://files.pythonhosted.org/packages/d0/be/02c78f562cf1c0b96878fe97e65264e05ce04c75510a179aca006cf1f84f/llm_foundation-0.0.28-py3-none-any.whl", hash = "sha256:3b88411aae47483a465abaee3dc0732c78d161ea043468a0f827132cf179042f", size = 14736 },
 ]
 
 [[package]]

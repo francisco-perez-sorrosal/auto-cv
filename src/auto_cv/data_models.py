@@ -124,3 +124,9 @@ class JobDetails(BaseModel):
                 "salary": "$150,000 - $180,000 per year"
             }
         }
+
+class LatexContent(BaseModel):
+    """
+    Pydantic model representing the structure of a latex document.
+    """
+    content: str = Field(..., description="content of the latex document as string")

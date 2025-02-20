@@ -33,6 +33,12 @@ pixi update
 5. Finally Run Streamlit
 ```pixi run streamlit run src/auto_cv/ui/main_app.py```
 
+### Shiny app
+
+
+Note: the ui pixi task includes `-r` option to autoreload the application.
+```pixi run ui```
+
 ### Run just the Crew (TODO: FIX IF NECESSARY - NOT WORKING WELL BC UV INTERFERES WITH PIXI)
 
 0. Setup the project as shown above
