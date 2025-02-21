@@ -1,5 +1,5 @@
 import sys
-from auto_cv.crews import CVCompilerCrew
+from auto_cv.cv_compiler_crew import CVCompilerCrew
 
 # This main file is intended to be a way for you to run your
 # crew locally, so refrain from adding unnecessary logic into this file.

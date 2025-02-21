@@ -15,4 +15,4 @@ def run():
         "target_dir": "/Users/fperez/dev/auto-cv/docs/generated-cvs",
         "filename_prefix": "2025_FranciscoPerezSorrosal_CV_English"
     }
-    CVAdaptorCrew().crew().kickoff(inputs=inputs)
+    return CVAdaptorCrew().crew().kickoff(inputs=inputs)

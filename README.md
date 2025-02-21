@@ -20,6 +20,13 @@ pixi update
 
 ## Usage
 
+# Run crews
+
+```
+pixi run run_cv_adaptor_crew
+pixi run run_cv_compiler_crew
+```
+
 ### Shiny app
 
 Note: the ui pixi task includes `-r` option to autoreload the application.
