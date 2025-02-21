@@ -1,17 +1,20 @@
 import asyncio
 import concurrent.futures
+from functools import partial
 import os
 from pathlib import Path
 import threading
 
 
+from htmltools import css
 from shiny import reactive
 from shiny.express import input, ui, app_opts, render, output
-from shiny.ui import Tag
+from shiny.ui import Tag, page_fillable, page_fluid
 from watchfiles import Change, DefaultFilter, watch, awatch, run_process, arun_process
 
 
 from .cv_adaptor_page import  cv_adaptor_page
+from .job_extractor_page import  job_extractor_page
 # from langtrace_python_sdk import langtrace  # Must precede any llm module imports
 
 from llm_foundation import logger
@@ -38,10 +41,12 @@ logger.info("Starting main app...")
 
 # Configure Shiny page
 app_opts(static_assets=WWW)
+
 ui.page_opts(
     title="CV Polisher",
-    fillable=True,
-    fillable_mobile=True,
+    # fillable=True,
+    # fluid=True,
+    # fillable_mobile=True,
 )
 
 ui.nav_spacer()
@@ -121,10 +126,11 @@ with ui.sidebar():
         
     )
 
+with ui.nav_panel("Job Extractor Page"):
+    job_extractor_page("job_extractor_page")
+
 with ui.nav_panel("CV Adaptor Page"):
     cv_adaptor_page("cv_adaptor_page", 
                     sidebar_text=input.text_in,
                     original_cv=input.cv_upload,)
                     # original_cv=output.pdfs_added)
-
-
