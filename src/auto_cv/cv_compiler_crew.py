@@ -22,8 +22,6 @@ class CVCompilerCrew():
             memory=True,
             verbose=True,
         )
-        # self.coder_role: Role = cv_compiler_personas.get_role("coder")
-        # return self.coder_role.to_crewai_agent(verbose=True, allow_delegation=False, allow_code_execution=True, )
 
     @task
     def compile_doc_task(self) -> Task:
@@ -31,12 +29,6 @@ class CVCompilerCrew():
             config=self.tasks_config['compile_doc'], # type: ignore
             tools=[LatexCompilerTool()],
         )
-        
-        
-        # agent = self.doc_compiler()
-        # logger.info(f"Creating doc compilation task for agent {agent}")
-        # return self.doc_compiler_role.get_crew_ai_task("compile_doc", agent, [LatexCompilerTool()])
-
 
     @crew
     def crew(self) -> Crew:

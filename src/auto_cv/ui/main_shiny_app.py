@@ -12,6 +12,8 @@ from shiny.express import input, ui, app_opts, render, output
 from shiny.ui import Tag, page_fillable, page_fluid
 from watchfiles import Change, DefaultFilter, watch, awatch, run_process, arun_process
 
+from auto_cv.utils import find_files_with_extension
+
 
 from .cv_adaptor_page import  cv_adaptor_page
 from .job_extractor_page import  job_extractor_page
@@ -57,7 +59,7 @@ def only_added_pdf(change: Change, path: str) -> bool:
 
 
 # Global list to store file changes and a lock for thread safety
-changed_files = []
+changed_files = find_files_with_extension(WWW)
 lock = threading.Lock()
 
 async def directory_watcher(directory):
@@ -65,7 +67,7 @@ async def directory_watcher(directory):
     Asynchronously watches the given directory for file changes.
     Each detected change is appended to the global changed_files list.
     """
-    async for changes in awatch(directory, watch_filter=only_added_pdf):
+    async for changes in awatch(directory, recursive=True, watch_filter=only_added_pdf):
         logger.info(f"Changes: {changes}")
         
         with lock:
@@ -102,7 +104,6 @@ with ui.sidebar():
         def new_pdfs():
             return list(changed_files)
         
-        # @output(id="pdfs_added")
         @render.ui()
         async def file_list() -> Tag:
             pdfs = new_pdfs()
@@ -123,14 +124,15 @@ with ui.sidebar():
         accept=[".pdf"], 
         multiple=False,
         placeholder="Select a CV to upload",
-        
     )
-
-with ui.nav_panel("Job Extractor Page"):
-    job_extractor_page("job_extractor_page")
 
 with ui.nav_panel("CV Adaptor Page"):
     cv_adaptor_page("cv_adaptor_page", 
                     sidebar_text=input.text_in,
-                    original_cv=input.cv_upload,)
-                    # original_cv=output.pdfs_added)
+                    original_cv=input.cv_upload,
+                    cv_2_present=input.pdfs_added,)
+                    # original_cv=output.pdfs_added
+
+with ui.nav_panel("Job Extractor Page"):
+    job_extractor_page("job_extractor_page")
+

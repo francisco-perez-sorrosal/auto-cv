@@ -72,18 +72,39 @@ class BasicInMemoryCache:
         
         logger.info(f"Loaded {len(cache)} items from cache {self.cache_file}")
         return cache
+
+    @property
+    def keys(self) -> list[str]:
+        """
+        Retrieve all keys from the cache
+        
+        Returns:
+            list[str]: List of keys in the cache
+        """
+        return list(self._cache.keys())
+
+
+    def is_empty(self) -> bool:
+        """
+        Check if the cache is empty
+        
+        Returns:
+            bool: True if the cache is empty, False otherwise
+        """
+        return not self._cache
     
-    def get(self, key_value: str) -> dict[str, Any] | None:
+    
+    def get(self, key: str) -> dict[str, Any] | None:
         """
         Retrieve a cached item by its key
         
         Args:
-            key_value (str): Key to look up in the cache
+            key (str): Key to look up in the cache
         
         Returns:
             Optional[dict]: Cached item or None if not found
         """
-        return self._cache.get(key_value)
+        return self._cache.get(key)
     
 
     def put(self, serializable_structure: dict[str, Any], overwrite: bool = False) -> bool:

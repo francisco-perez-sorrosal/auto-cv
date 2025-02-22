@@ -107,6 +107,18 @@ class JobDetails(BaseModel):
         """
         return json.loads(self.to_json())
     
+    def generate_filename_prefix(self) -> str:
+        """
+        Generate a filename prefix based on the job details.
+        
+        Returns:
+            str: Filename prefix
+        """
+        return (
+            f"{self.company.replace(',', '_').replace(' ', '_')}_" 
+            f"{self.title.replace(',', '_').replace(' ', '_')}"
+        )
+    
     class Config:
         """Pydantic model configuration"""
         title = "Job Details"
