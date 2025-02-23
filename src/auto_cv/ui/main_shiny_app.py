@@ -88,6 +88,8 @@ watcher_thread.start()
 
 with ui.sidebar():
         
+    cv_to_present = reactive.Value("N/A")
+
     ui.h1("CV Polisher")
     
     ui.input_text("text_in", "Type something here (Useless now):")
@@ -102,21 +104,29 @@ with ui.sidebar():
         
         @reactive.poll(poll_func=poll_func, interval_secs=1)
         def new_pdfs():
+            cv_to_present.set(changed_files[-1])
             return list(changed_files)
         
         @render.ui()
         async def file_list() -> Tag:
             pdfs = new_pdfs()
             if pdfs:
+                
                 # Display the files as a bulleted list.
                 return ui.input_select(
-                    "pdfs_added",
+                    "selected_pdf",
                     "Select a PDF to display:",
                     new_pdfs(),
                     multiple=False,
                 )
             else:
                 return ui.tags.div("No changes detected yet.")
+            
+        @reactive.effect
+        @reactive.event(input.selected_pdf)
+        def update_cv_to_present():
+            cv_to_present.set(input.selected_pdf.get())
+
 
     ui.input_file(
         "cv_upload", 
@@ -130,8 +140,7 @@ with ui.nav_panel("CV Adaptor Page"):
     cv_adaptor_page("cv_adaptor_page", 
                     sidebar_text=input.text_in,
                     original_cv=input.cv_upload,
-                    cv_2_present=input.pdfs_added,)
-                    # original_cv=output.pdfs_added
+                    cv_2_present=cv_to_present,)
 
 with ui.nav_panel("Job Extractor Page"):
     job_extractor_page("job_extractor_page")

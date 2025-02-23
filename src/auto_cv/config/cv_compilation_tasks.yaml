@@ -1,6 +1,6 @@
 compile_doc:
   description: >
-    Compiles a latex-based document from a particular latex file specified in the tex file ```{document}```.
+    Reads the tex file strictly specified in the path ```{document}``` and, without modifying it, compiles it.
   expected_output: >
     True if there are no errors, False otherwise.
   agent: latex_compiler

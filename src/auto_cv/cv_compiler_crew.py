@@ -19,7 +19,7 @@ class CVCompilerCrew():
             allow_code_execution=False,
             code_execution_mode='unsafe',
             allow_delegation=False,
-            memory=True,
+            # memory=True,
             verbose=True,
         )
 

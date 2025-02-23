@@ -1,4 +1,3 @@
-import sys
 from auto_cv.cv_adaptor_crew import CVAdaptorCrew
 
 # This main file is intended to be a way for you to run your

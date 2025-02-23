@@ -82,7 +82,19 @@ class BasicInMemoryCache:
             list[str]: List of keys in the cache
         """
         return list(self._cache.keys())
+        
 
+    def build_dict_with(self, *obj_attrs: str, sep: str = " - ") -> dict:
+        """
+        Build a dictionary from the cache based on the specified object attributes
+        
+        Args:
+            *obj_attrs (str): Attributes of the object to use as keys in the dictionary
+        
+        Returns:
+            dict: Dictionary with keys from the cache and values from the specified attributes
+        """
+        return {key: sep.join(obj.get(attr, "N/A") for attr in obj_attrs) for key, obj in self._cache.items()}
 
     def is_empty(self) -> bool:
         """
