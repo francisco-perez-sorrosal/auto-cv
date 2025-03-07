@@ -7,23 +7,27 @@ import threading
 
 
 from htmltools import css
-from shiny import reactive
+from shiny import Session, reactive
 from shiny.express import input, ui, app_opts, render, output
 from shiny.ui import Tag, page_fillable, page_fluid
-from watchfiles import Change, DefaultFilter, watch, awatch, run_process, arun_process
+from watchfiles import Change
 
-from auto_cv.utils import find_files_with_extension
+from auto_cv.utils import find_files_with_extension, run_async_watcher
 
 
 from .cv_adaptor_page import  cv_adaptor_page
 from .job_extractor_page import  job_extractor_page
+from .raw_tex_cv_page import raw_tex_cv_page, get_raw_tex_cv_content
+
 # from langtrace_python_sdk import langtrace  # Must precede any llm module imports
 
 from llm_foundation import logger
 
 # WWW directory definition for static assets
 DIR = os.path.dirname(os.path.abspath(__file__))
-WWW = os.path.join(DIR, "www")
+WWW = Path(DIR, "www")
+CV_TEMPLATES = Path(WWW, "cv_templates")
+DEFAULT_RAW_CV_TEMPLATE = "2025_FranciscoPerezSorrosal_CV_English.tex"
 
 # Execute the extended task logic on a different thread. To use a different
 # process instead, use concurrent.futures.ProcessPoolExecutor.
@@ -59,34 +63,21 @@ def only_added_pdf(change: Change, path: str) -> bool:
 
 
 # Global list to store file changes and a lock for thread safety
+global changed_files
 changed_files = find_files_with_extension(WWW)
 lock = threading.Lock()
 
-async def directory_watcher(directory):
-    """
-    Asynchronously watches the given directory for file changes.
-    Each detected change is appended to the global changed_files list.
-    """
-    async for changes in awatch(directory, recursive=True, watch_filter=only_added_pdf):
-        logger.info(f"Changes: {changes}")
-        
-        with lock:
-            for change_type, file_path in changes:
-                changed_files.append(file_path)
-                print(f"Detected change in: {file_path}")
-
-def run_async_watcher():
-    """
-    Runs the asynchronous directory watcher inside an asyncio event loop.
-    """
-    asyncio.run(directory_watcher(WWW))
-    
-
 # Start the asynchronous file watcher in a daemon thread.
-watcher_thread = threading.Thread(target=run_async_watcher, daemon=True)
+watcher_thread = threading.Thread(target=run_async_watcher, args=(WWW, changed_files, lock, only_added_pdf), daemon=True)
 watcher_thread.start()
 
+raw_tex_content = get_raw_tex_cv_content("cv_content")
+
+
+
 with ui.sidebar():
+    
+    # raw_tex_content = reactive.Value()
         
     cv_to_present = reactive.Value("N/A")
 
@@ -95,7 +86,15 @@ with ui.sidebar():
     ui.input_text("text_in", "Type something here (Useless now):")
 
     ui.markdown(f"Watching dir:\n{WWW}")
+    
+    
     with ui.card():
+
+        @output
+        @render.ui
+        @reactive.event(raw_tex_content)
+        def have_raw_tex_cv_content():
+            return f"Raw CV content loaded: {raw_tex_content.get() != 'N/A'}"
 
         def poll_func():
             with lock:
@@ -128,20 +127,16 @@ with ui.sidebar():
             cv_to_present.set(input.selected_pdf.get())
 
 
-    ui.input_file(
-        "cv_upload", 
-        "Upload CV", 
-        accept=[".pdf"], 
-        multiple=False,
-        placeholder="Select a CV to upload",
-    )
+# Navigation panels
+
+with ui.nav_panel("Raw CV"):
+    raw_tex_cv_page("raw_tex_cv_page", template_dir=CV_TEMPLATES, default_template=DEFAULT_RAW_CV_TEMPLATE)
+
 
 with ui.nav_panel("CV Adaptor Page"):
     cv_adaptor_page("cv_adaptor_page", 
                     sidebar_text=input.text_in,
-                    original_cv=input.cv_upload,
                     cv_2_present=cv_to_present,)
 
 with ui.nav_panel("Job Extractor Page"):
     job_extractor_page("job_extractor_page")
-

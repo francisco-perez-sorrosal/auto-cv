@@ -186,7 +186,7 @@ def job_extractor_page(input, output, session):
                     @reactive.event(job_details)
                     def show_markdown_description():
                         serializable_job_details = job_details.get()
-                        if serializable_job_details == {}:
+                        if serializable_job_details is None or serializable_job_details == {}:
                             return ui.markdown("No job details available")
                         job_details_pydantic = JobDetails.model_validate(serializable_job_details)
                         return ui.markdown(job_details_pydantic.markdown_description or "No markdown description available")

@@ -1,5 +1,31 @@
+import asyncio
 from datetime import datetime
+import os
+from pathlib import Path
 from typing import Any
+from watchfiles import Change, DefaultFilter, watch, awatch, run_process, arun_process
+
+from llm_foundation import logger
+
+async def directory_watcher(directory, changed_files, lock, filter):
+    """
+    Asynchronously watches the given directory for file changes.
+    Each detected change is appended to the global changed_files list.
+    """
+    async for changes in awatch(directory, recursive=True, watch_filter=filter):
+        logger.info(f"Changes: {changes}")
+        
+        with lock:
+            for change_type, file_path in changes:
+                changed_files.append(file_path)
+                print(f"Detected change in: {file_path}")
+
+def run_async_watcher(directory: Path, changed_files, lock, filter):
+    """
+    Runs the asynchronous directory watcher inside an asyncio event loop.
+    """
+    asyncio.run(directory_watcher(directory, changed_files, lock, filter))
+    
 
 def make_serializable(structure: dict[str, Any]) -> dict[str, Any]:
         """
@@ -19,7 +45,7 @@ def make_serializable(structure: dict[str, Any]) -> dict[str, Any]:
         return {k: serialize_value(v) for k, v in structure.items()}
 
 
-def find_files_with_extension(directory: str, extension: str = ".pdf") -> list[str]:
+def find_files_with_extension(directory: Path, extension: str = ".pdf") -> list[str]:
     """
     Find all files with a particular extension from a directory
     
@@ -38,3 +64,45 @@ def find_files_with_extension(directory: str, extension: str = ".pdf") -> list[s
         files.append(os.path.abspath(path))
 
     return files
+
+
+def read_text_file(file_path: Path) -> str:
+    """
+    Reads the contents of a text file
+    
+    Args:
+        file_path (Path): Path to the text file
+    
+    Returns:
+        str: Contents of the text file
+    """
+    try:
+        with open(file_path) as f:
+            return f.read()
+    except FileNotFoundError:
+        return f"File not found: {file_path}"
+
+
+
+def save_text_file(file_path: Path, content: str, overwrite: bool = True) -> Path:
+    """
+    Save the content in a text file. If the file already exists, it will be overwritten if overwrite is True.
+    
+    Args:
+        file_path (Path): Path to the text file.
+        content (str): Content to be written to the file.
+        overwrite (bool, optional): If True, the file will be overwritten if it exists. Defaults to True.
+    
+    Returns:
+        Path: Path of the saved file.
+    """
+    # Ensure the parent directory exists.
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # 'w' overwrites or creates the file; 'x' only creates the file if it doesn't exist.
+    mode = 'w' if overwrite or not file_path.exists() else 'x'
+    
+    with file_path.open(mode) as f:
+        f.write(content)
+        
+    return file_path

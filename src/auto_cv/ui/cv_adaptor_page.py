@@ -30,7 +30,7 @@ extracted_job_description_cache = BasicInMemoryCache(
 )
 
 @module
-def cv_adaptor_page(input, output, session, sidebar_text, original_cv, cv_2_present):
+def cv_adaptor_page(input, output, session, sidebar_text, cv_2_present):
     
     # Reactive variables state
     
@@ -42,7 +42,6 @@ def cv_adaptor_page(input, output, session, sidebar_text, original_cv, cv_2_pres
     
     # Sidebar text
     text = reactive.value("N/A")
-    uploaded_file = reactive.value("N/A")
     cv_to_present = reactive.value("N/A")
 
     @reactive.effect
@@ -59,11 +58,6 @@ def cv_adaptor_page(input, output, session, sidebar_text, original_cv, cv_2_pres
         ui.page_opts(fillable=True)
         ui.card_header("Status")
         
-        # @output
-        # @render.text
-        # def status_message_out():
-        #     return str(job_selected.get())
-
         @render.ui
         @reactive.event(status_message)
         def status_banner():
@@ -145,12 +139,8 @@ def cv_adaptor_page(input, output, session, sidebar_text, original_cv, cv_2_pres
     @reactive.effect
     @reactive.event(sidebar_text)
     def get_sidebar_text_events():
-        text.set(str(sidebar_text.get()) + " and " + str(original_cv.get()))
+        text.set(str(sidebar_text.get()))
 
-    @reactive.effect
-    @reactive.event(original_cv)
-    def get_cv_filename_events():
-        uploaded_file.set(str(original_cv.get()))
 
     # @render.code
     # def out():
