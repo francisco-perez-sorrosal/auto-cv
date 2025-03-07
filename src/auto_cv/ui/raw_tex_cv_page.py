@@ -24,6 +24,8 @@ from htmltools import css
 from shiny.express import ui
 from shiny.ui import page_fillable
 
+from auto_cv.ui.shared import CV_TEMPLATES, DEFAULT_RAW_CV_TEMPLATE
+
 from auto_cv.utils import save_text_file, read_text_file, find_files_with_extension
 
 
@@ -32,19 +34,20 @@ def only_added_tex(change: Change, path: str) -> bool:
     return change == Change.added and path.endswith(allowed_extensions)
 
 
-cv_content: Value[str] = reactive.Value[str]("N/A")
+cv_content: Value[str] = reactive.Value[str](read_text_file(Path(CV_TEMPLATES, DEFAULT_RAW_CV_TEMPLATE)))
+
 
 @module
-def raw_tex_cv_page(input, output, session, template_dir: Path, default_template: str):
+def raw_tex_cv_page(input, output, session):
 
     
     # Global list to store tex file changes and a lock for thread safety
     global tex_changed_files
-    tex_changed_files = {f: os.path.basename(f) for f in find_files_with_extension(template_dir, extension=".tex")}
+    tex_changed_files = {f: os.path.basename(f) for f in find_files_with_extension(CV_TEMPLATES, extension=".tex")}
     lock = threading.Lock()
 
     # Start the asynchronous file watcher in a daemon thread.
-    watcher_thread = threading.Thread(target=run_async_watcher, args=(template_dir, tex_changed_files, lock, only_added_tex), daemon=True)
+    watcher_thread = threading.Thread(target=run_async_watcher, args=(CV_TEMPLATES, tex_changed_files, lock, only_added_tex), daemon=True)
     watcher_thread.start()
 
     print(f"tex_changed_files: {tex_changed_files}")
@@ -100,7 +103,7 @@ def raw_tex_cv_page(input, output, session, template_dir: Path, default_template
         ui.card_header("Latex Content")
         
         font_size = reactive.value(12)
-        ui.input_slider("font_size_slider", "Font Size", min=8, max=14, value=12) 
+        ui.input_slider("font_size_slider", "Font Size", min=8, max=14, value=12)
         
         @render.ui
         @reactive.event(input.font_size_slider)
@@ -114,9 +117,9 @@ def raw_tex_cv_page(input, output, session, template_dir: Path, default_template
                 selected_raw_cv = input.select_raw_cv_template.get()
                 if selected_raw_cv is None:
                     ui.markdown("Please select a CV to view. Showing default for now...")
-                    selected_raw_cv = default_template
-                cv_content.set(read_text_file(Path(template_dir, selected_raw_cv)))
-                # print(f"CV content: {cv_content}")
+                    selected_raw_cv = DEFAULT_RAW_CV_TEMPLATE
+                cv_content.set(read_text_file(Path(CV_TEMPLATES, selected_raw_cv)))
+
                 return ui.tags.div(
                     ui.markdown(cv_content.get()),
                     style=f"font-size: {font_size.get()}px",
@@ -129,9 +132,9 @@ def raw_tex_cv_page(input, output, session, template_dir: Path, default_template
             file = input.cv_upload.get()[0]['datapath']
             file_content = read_text_file(file)
             filename = input.cv_upload.get()[0]['name']
-            save_text_file(Path(template_dir, filename), file_content, overwrite=False)
-            logger.info(f"CV file saved in {os.path.join(template_dir, filename)}")
-            RAW_CVS = {f: os.path.basename(f) for f in find_files_with_extension(template_dir, extension=".tex")}
+            save_text_file(Path(CV_TEMPLATES, filename), file_content, overwrite=False)
+            logger.info(f"CV file saved in {os.path.join(CV_TEMPLATES, filename)}")
+            RAW_CVS = {f: os.path.basename(f) for f in find_files_with_extension(CV_TEMPLATES, extension=".tex")}
             raw_cv_template_files.set(RAW_CVS)
 
 

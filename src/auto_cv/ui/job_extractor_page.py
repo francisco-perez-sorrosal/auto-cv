@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Any
 
 from numpy import column_stack, full
 from pyvis.network import Network
@@ -19,6 +20,8 @@ from htmltools import css
 from shiny.express import ui
 from shiny.ui import page_fillable
 
+
+curated_job_description: reactive.Value[Any] = reactive.Value[Any](None)
 
 
 # WWW directory definition for static assets
@@ -189,5 +192,11 @@ def job_extractor_page(input, output, session):
                         if serializable_job_details is None or serializable_job_details == {}:
                             return ui.markdown("No job details available")
                         job_details_pydantic = JobDetails.model_validate(serializable_job_details)
+                        curated_job_description.set(job_details_pydantic)
                         return ui.markdown(job_details_pydantic.markdown_description or "No markdown description available")
-    
+
+
+# Module just to return the curated_job_description to the main_shiny_app.py
+@module
+def get_curated_job_description(input, output, session):
+    return curated_job_description

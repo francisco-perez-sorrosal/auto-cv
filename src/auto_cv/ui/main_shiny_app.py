@@ -1,33 +1,28 @@
-import asyncio
 import concurrent.futures
-from functools import partial
 import os
 from pathlib import Path
 import threading
 
 
-from htmltools import css
-from shiny import Session, reactive
+
+from shiny import reactive
 from shiny.express import input, ui, app_opts, render, output
-from shiny.ui import Tag, page_fillable, page_fluid
+from shiny.ui import Tag
 from watchfiles import Change
 
 from auto_cv.utils import find_files_with_extension, run_async_watcher
-
+from auto_cv.ui.shared import WWW
 
 from .cv_adaptor_page import  cv_adaptor_page
 from .job_extractor_page import  job_extractor_page
+from .pipeline_page import pipeline_page
 from .raw_tex_cv_page import raw_tex_cv_page, get_raw_tex_cv_content
+from .job_extractor_page import get_curated_job_description
 
 # from langtrace_python_sdk import langtrace  # Must precede any llm module imports
 
 from llm_foundation import logger
 
-# WWW directory definition for static assets
-DIR = os.path.dirname(os.path.abspath(__file__))
-WWW = Path(DIR, "www")
-CV_TEMPLATES = Path(WWW, "cv_templates")
-DEFAULT_RAW_CV_TEMPLATE = "2025_FranciscoPerezSorrosal_CV_English.tex"
 
 # Execute the extended task logic on a different thread. To use a different
 # process instead, use concurrent.futures.ProcessPoolExecutor.
@@ -72,7 +67,7 @@ watcher_thread = threading.Thread(target=run_async_watcher, args=(WWW, changed_f
 watcher_thread.start()
 
 raw_tex_content = get_raw_tex_cv_content("cv_content")
-
+curated_job_description = get_curated_job_description("curated_job_description")
 
 
 with ui.sidebar():
@@ -129,14 +124,19 @@ with ui.sidebar():
 
 # Navigation panels
 
+with ui.nav_panel("Pipeline"):
+    pipeline_page("pipeline_page", raw_cv_content=raw_tex_content, curated_job_description=curated_job_description)
+
+
 with ui.nav_panel("Raw CV"):
-    raw_tex_cv_page("raw_tex_cv_page", template_dir=CV_TEMPLATES, default_template=DEFAULT_RAW_CV_TEMPLATE)
+    raw_tex_cv_page("raw_tex_cv_page")
 
 
 with ui.nav_panel("CV Adaptor Page"):
     cv_adaptor_page("cv_adaptor_page", 
                     sidebar_text=input.text_in,
                     cv_2_present=cv_to_present,)
+
 
 with ui.nav_panel("Job Extractor Page"):
     job_extractor_page("job_extractor_page")
