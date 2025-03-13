@@ -34,6 +34,7 @@ def only_added_tex(change: Change, path: str) -> bool:
     return change == Change.added and path.endswith(allowed_extensions)
 
 
+tex_filename: Value[str] = reactive.Value[str](Path(CV_TEMPLATES, DEFAULT_RAW_CV_TEMPLATE).as_uri())
 cv_content: Value[str] = reactive.Value[str](read_text_file(Path(CV_TEMPLATES, DEFAULT_RAW_CV_TEMPLATE)))
 
 
@@ -119,6 +120,7 @@ def raw_tex_cv_page(input, output, session):
                     ui.markdown("Please select a CV to view. Showing default for now...")
                     selected_raw_cv = DEFAULT_RAW_CV_TEMPLATE
                 cv_content.set(read_text_file(Path(CV_TEMPLATES, selected_raw_cv)))
+                tex_filename.set(Path(CV_TEMPLATES, selected_raw_cv).as_uri())
 
                 return ui.tags.div(
                     ui.markdown(cv_content.get()),
@@ -142,3 +144,7 @@ def raw_tex_cv_page(input, output, session):
 @module
 def get_raw_tex_cv_content(input, output, session):
     return cv_content
+
+@module
+def get_raw_tex_filename(input, output, session):
+    return tex_filename

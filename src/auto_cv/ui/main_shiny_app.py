@@ -16,7 +16,7 @@ from auto_cv.ui.shared import WWW
 from .cv_adaptor_page import  cv_adaptor_page
 from .job_extractor_page import  job_extractor_page
 from .pipeline_page import pipeline_page
-from .raw_tex_cv_page import raw_tex_cv_page, get_raw_tex_cv_content
+from .raw_tex_cv_page import raw_tex_cv_page, get_raw_tex_filename, get_raw_tex_cv_content
 from .job_extractor_page import get_curated_job_description
 
 # from langtrace_python_sdk import langtrace  # Must precede any llm module imports
@@ -66,6 +66,7 @@ lock = threading.Lock()
 watcher_thread = threading.Thread(target=run_async_watcher, args=(WWW, changed_files, lock, only_added_pdf), daemon=True)
 watcher_thread.start()
 
+raw_tex_filename = get_raw_tex_filename("tex_filename")
 raw_tex_content = get_raw_tex_cv_content("cv_content")
 curated_job_description = get_curated_job_description("curated_job_description")
 
@@ -77,19 +78,23 @@ with ui.sidebar():
     cv_to_present = reactive.Value("N/A")
 
     ui.h1("CV Polisher")
-    
-    ui.input_text("text_in", "Type something here (Useless now):")
 
     ui.markdown(f"Watching dir:\n{WWW}")
     
+    @output
+    @render.ui
+    @reactive.event(raw_tex_content)
+    def have_raw_tex_cv_content():
+        return f"Raw CV content loaded: {raw_tex_content.get() != 'N/A'}"
+
+    @output
+    @render.ui
+    # @reactive.event(curated_job_description)
+    def have_curated_job_description():
+        return f"Curated job description loaded: {curated_job_description.get() is not None}"
+
     
     with ui.card():
-
-        @output
-        @render.ui
-        @reactive.event(raw_tex_content)
-        def have_raw_tex_cv_content():
-            return f"Raw CV content loaded: {raw_tex_content.get() != 'N/A'}"
 
         def poll_func():
             with lock:
@@ -125,7 +130,7 @@ with ui.sidebar():
 # Navigation panels
 
 with ui.nav_panel("Pipeline"):
-    pipeline_page("pipeline_page", raw_cv_content=raw_tex_content, curated_job_description=curated_job_description)
+    pipeline_page("pipeline_page", raw_tex_filename=raw_tex_filename, raw_cv_content=raw_tex_content, curated_job_description=curated_job_description)
 
 
 with ui.nav_panel("Raw CV"):
@@ -134,7 +139,6 @@ with ui.nav_panel("Raw CV"):
 
 with ui.nav_panel("CV Adaptor Page"):
     cv_adaptor_page("cv_adaptor_page", 
-                    sidebar_text=input.text_in,
                     cv_2_present=cv_to_present,)
 
 

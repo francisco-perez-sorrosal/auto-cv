@@ -12,11 +12,9 @@ from auto_cv.cache import BasicInMemoryCache
 from auto_cv.cv_adaptor_crew import CVAdaptorCrew
 from auto_cv.cv_compiler_crew import CVCompilerCrew
 from auto_cv.data_models import JobDetails
-from auto_cv.utils import make_serializable
+from auto_cv.ui.shared import WWW
+from auto_cv.utils import build_target_dir_structure, make_serializable
 
-# WWW directory definition for static assets
-DIR = os.path.dirname(os.path.abspath(__file__))
-WWW = os.path.join(DIR, "www")
 
 # Default CV path for test purposes
 DEFAULT_CV_PATH = os.path.join(WWW, "2025_FranciscoPerezSorrosal_CV_English.pdf")
@@ -30,7 +28,7 @@ extracted_job_description_cache = BasicInMemoryCache(
 )
 
 @module
-def cv_adaptor_page(input, output, session, sidebar_text, cv_2_present):
+def cv_adaptor_page(input, output, session, cv_2_present):
     
     # Reactive variables state
     
@@ -104,14 +102,7 @@ def cv_adaptor_page(input, output, session, sidebar_text, cv_2_present):
         cached_job = extracted_job_description_cache.get(job_id)  # type: ignore
         cached_job = make_serializable(cached_job)  # type: ignore        
         pydantic_cached_job = JobDetails.model_validate(cached_job)
-        
-        # Create a unique dir structure based on the job title and timestamp
-        now = datetime.datetime.now()
-        timestamp_str = now.strftime("%Y_%m_%d_%H_%M_%S")
-        file_prefix = pydantic_cached_job.generate_filename_prefix() + "_" + timestamp_str
-        target_dir = os.path.join(WWW, 'generated_cvs', file_prefix)
-        if not os.path.exists(target_dir):
-            os.makedirs(target_dir)
+        target_dir = build_target_dir_structure(pydantic_cached_job, WWW)
 
         adaptor_inputs = {
             "original_cv": "/Users/fperez/dev/auto-cv/docs/2025_FranciscoPerezSorrosal_CV_English.tex",
@@ -134,12 +125,6 @@ def cv_adaptor_page(input, output, session, sidebar_text, cv_2_present):
         id="adapt_cv_btn", 
         label="Adapt CV",
     )
-
-
-    @reactive.effect
-    @reactive.event(sidebar_text)
-    def get_sidebar_text_events():
-        text.set(str(sidebar_text.get()))
 
 
     # @render.code

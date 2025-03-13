@@ -7,6 +7,8 @@ from watchfiles import Change, DefaultFilter, watch, awatch, run_process, arun_p
 
 from llm_foundation import logger
 
+from auto_cv.data_models import JobDetails
+
 async def directory_watcher(directory, changed_files, lock, filter):
     """
     Asynchronously watches the given directory for file changes.
@@ -106,3 +108,16 @@ def save_text_file(file_path: Path, content: str, overwrite: bool = True) -> Pat
         f.write(content)
         
     return file_path
+
+
+def build_target_dir_structure(pydantic_cached_job: JobDetails, basedir: Path):
+    # Create a unique dir structure based on the job title and timestamp
+    now = datetime.now()
+    timestamp_str = now.strftime("%Y_%m_%d_%H_%M_%S")
+    file_prefix = pydantic_cached_job.generate_filename_prefix() + "_" + timestamp_str
+    target_dir = os.path.join(basedir, 'generated_cvs', file_prefix)
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+        logger.info(f"Target directory created: {target_dir}")
+
+    return target_dir
