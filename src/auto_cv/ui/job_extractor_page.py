@@ -21,12 +21,23 @@ from shiny.express import ui
 from shiny.ui import page_fillable
 
 
-curated_job_description: reactive.Value[Any] = reactive.Value[Any](None)
+extracted_job_description_cache = BasicInMemoryCache(
+    app_name="auto-cv", 
+    cache_subdir="extracted_job_descriptions_cache", 
+    cache_file="extracted_job_descriptions.jsonl", 
+    cache_key_name="url"
+)
 
-
-# WWW directory definition for static assets
-DIR = os.path.dirname(os.path.abspath(__file__))
-WWW = os.path.join(DIR, "www")
+def get_job_details(url_idx: str, url: str):
+    # Check cache first
+    if extracted_job_description_cache.exists(url):
+        job_stuff = extracted_job_description_cache.get(url)
+        job_stuff = make_serializable(job_stuff)  # type: ignore
+        status_message.set(f"Job description found in cache for ({url_idx}) - {url}")
+        return job_stuff
+    else:
+        status_message.set(f"No cached job description found for {url}")
+        return {}
 
 # Predefined example LinkedIn job URLs
 EXAMPLE_URLS = {
@@ -34,12 +45,23 @@ EXAMPLE_URLS = {
     "Amazon Test 2": "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4070067137",
 }
 
-extracted_job_description_cache = BasicInMemoryCache(
-    app_name="auto-cv", 
-    cache_subdir="extracted_job_descriptions_cache", 
-    cache_file="extracted_job_descriptions.jsonl", 
-    cache_key_name="url"
-)
+DEFAULT_EXAMPLE_URL_IDX = list(EXAMPLE_URLS.items())[0][0]
+
+# Reactive variables state
+    
+# Status banner state
+status_message = reactive.value("Ready to extract job details")
+selected_url_idx = reactive.value(DEFAULT_EXAMPLE_URL_IDX)
+selected_url = reactive.value(EXAMPLE_URLS[DEFAULT_EXAMPLE_URL_IDX])
+DEFAULT_JOB_DETAILS = get_job_details(DEFAULT_EXAMPLE_URL_IDX, EXAMPLE_URLS[DEFAULT_EXAMPLE_URL_IDX])
+job_details = reactive.value(DEFAULT_JOB_DETAILS)
+
+curated_job_description: reactive.Value[Any] = reactive.Value[Any](JobDetails.model_validate(DEFAULT_JOB_DETAILS))
+
+
+# WWW directory definition for static assets
+DIR = os.path.dirname(os.path.abspath(__file__))
+WWW = os.path.join(DIR, "www")
 
 def format_job_basics(job_details: JobDetails):
     """
@@ -71,14 +93,8 @@ def format_job_basics(job_details: JobDetails):
 def job_extractor_page(input, output, session):
     # ui.page_opts(fillable=True)
     
-    # Reactive variables state
+    ui.markdown(f"Default example URL: {DEFAULT_EXAMPLE_URL_IDX}")
     
-    # Status banner state
-    status_message = reactive.value("Ready to extract job details")
-    selected_url_idx = reactive.value("Select an example URL")
-    selected_url = reactive.value("N/A")
-    job_details = reactive.value({})
-
     @render.ui  # We have to keep render.ui for the reactive event to work
     @reactive.event(input.select_job_url)
     def job_url_selected():
@@ -86,15 +102,7 @@ def job_extractor_page(input, output, session):
         selected_url.set(EXAMPLE_URLS[selected_url_idx.get()])
         status_message.set(f"Job URL selected: ({selected_url_idx.get()}) - {selected_url.get()}")
         
-        current_url = selected_url.get()
-        # Check cache first
-        if extracted_job_description_cache.exists(current_url):
-            job_stuff = extracted_job_description_cache.get(current_url)
-            job_stuff = make_serializable(job_stuff)  # type: ignore
-            job_details.set(job_stuff)  # type: ignore
-            status_message.set(f"Job description found in cache for ({selected_url_idx.get()}) - {current_url}")
-        else:
-            status_message.set(f"No cached job description found for {current_url}")
+        job_details.set(get_job_details(selected_url_idx.get(), selected_url.get()))
         
 
     # UI code

@@ -50,7 +50,7 @@ def cv_adaptor_page(input, output, session, cv_2_present):
 
     # UI code
 
-    ui.h2("CV Adaptor Page")
+    ui.h2("CV Adaptor")
 
     with ui.card(min_height=150):
         ui.page_opts(fillable=True)

@@ -89,7 +89,7 @@ with ui.sidebar():
 
     @output
     @render.ui
-    # @reactive.event(curated_job_description)
+    @reactive.event(curated_job_description)
     def have_curated_job_description():
         return f"Curated job description loaded: {curated_job_description.get() is not None}"
 
@@ -133,14 +133,16 @@ with ui.nav_panel("Pipeline"):
     pipeline_page("pipeline_page", raw_tex_filename=raw_tex_filename, raw_cv_content=raw_tex_content, curated_job_description=curated_job_description)
 
 
+with ui.nav_panel("Job Extractor"):
+    job_extractor_page("job_extractor_page")
+
+
 with ui.nav_panel("Raw CV"):
     raw_tex_cv_page("raw_tex_cv_page")
 
 
-with ui.nav_panel("CV Adaptor Page"):
+with ui.nav_panel("CV Adaptor"):
     cv_adaptor_page("cv_adaptor_page", 
                     cv_2_present=cv_to_present,)
 
 
-with ui.nav_panel("Job Extractor Page"):
-    job_extractor_page("job_extractor_page")

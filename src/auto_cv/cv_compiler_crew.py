@@ -27,7 +27,7 @@ class CVCompilerCrew():
     def compile_doc_task(self) -> Task:
         return Task(
             config=self.tasks_config['compile_doc'], # type: ignore
-            tools=[LatexCompilerTool()],
+            tools=[LatexCompilerTool(result_as_answer=True)],
         )
 
     @crew
@@ -36,7 +36,6 @@ class CVCompilerCrew():
         return Crew(
             agents=self.agents, # Automatically created by the @agent decorator
             tasks=self.tasks, # Automatically created by the @task decorator
-            process=Process.sequential,
+            process=Process.sequential,  # process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
             verbose=True,
-            # process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
         )

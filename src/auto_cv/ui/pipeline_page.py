@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+from crewai.crew import CrewOutput
 from shiny.express import ui, module, render
 from shiny import reactive
 
@@ -11,6 +13,8 @@ from auto_cv.cv_compiler_crew import CVCompilerCrew
 from auto_cv.data_models import JobDetails
 from auto_cv.utils import build_target_dir_structure
 from auto_cv.ui.shared import WWW
+
+compiled_cv = reactive.Value[str | None](None)
 
 @module
 def pipeline_page(input, output, session, raw_tex_filename, raw_cv_content, curated_job_description):
@@ -29,21 +33,25 @@ def pipeline_page(input, output, session, raw_tex_filename, raw_cv_content, cura
         # Create a unique dir structure based on the job title and timestamp
         target_dir = build_target_dir_structure(job_details_pydantic, WWW)
 
+        markdown_job_description = job_details_pydantic.markdown_description
         adaptor_inputs = {
             "original_cv": raw_tex_filename.get(),
+            "curated_job_description": markdown_job_description,
             "target_dir": target_dir,
-            "filename_prefix": "2025_FranciscoPerezSorrosal_CV_English"
+            "filename_prefix": "2025_FranciscoPerezSorrosal_CV_English",
         }
         status_message.set(f"Adapting CV: {adaptor_inputs}")
         adaption_output =CVAdaptorCrew().crew().kickoff(inputs=adaptor_inputs)
         # adaptation_state.set(adaption_output.token_usage)
         
         compiler_inputs = {
-            "document": os.path.join(target_dir, "2025_FranciscoPerezSorrosal_CV_English.tex"),
+            "document_path": os.path.join(target_dir, "2025_FranciscoPerezSorrosal_CV_English.tex"),
         }
         status_message.set(f"Compiling CV: {compiler_inputs}")
-        compiler_output = CVCompilerCrew().crew().kickoff(inputs=compiler_inputs)
-        # compile_state.set(compiler_output.token_usage)
+        compiler_output: CrewOutput = CVCompilerCrew().crew().kickoff(inputs=compiler_inputs)
+
+        logger.info(f"Compiler output: {compiler_output}")
+        compiled_cv.set(str(compiler_output))
     
     
     # UI code
@@ -134,7 +142,7 @@ def pipeline_page(input, output, session, raw_tex_filename, raw_cv_content, cura
                 @render.ui
                 def show_job_title():
                     job_company = curated_job_description.get().company if curated_job_description.get() is not None else "Unknown Company"
-                    job_title = curated_job_description.get().title if curated_job_description.get() is not None else "Select a Job Description in the Job Extractor Page"
+                    job_title = curated_job_description.get().title if curated_job_description.get() is not None else "Select a Job in the Job Extractor Page"
                     return ui.card_header(f"{job_company} - {job_title}")
                                     
                 @output
@@ -166,9 +174,36 @@ def pipeline_page(input, output, session, raw_tex_filename, raw_cv_content, cura
     with ui.card(min_height=500, style = "font-size: 12px;"):
         ui.page_opts(fillable=True)
         ui.card_header("Output CV")
-                            
+
         @output
         @render.ui
-        # @reactive.event(adapted_cv)
-        def show_adapted_cv():
-            return ui.markdown("No adapted CV available")
+        def cv_to_present_str():
+            if compiled_cv.get() is None:
+                return ui.markdown("### No CV to display")
+            status_message.set(f"CV: {compiled_cv.get()}")
+            return ui.markdown(f"Showing CV:{compiled_cv.get()}")
+
+        @render.ui
+        def pdf_viewer():
+            """
+            Render a PDF viewer with a default CV
+            """
+            
+            if compiled_cv.get() is None:
+                return ui.markdown("Result will be shown when latex compilation finishes")
+            
+            cv_path = Path(compiled_cv.get())
+            print(f"CV to print {cv_path}")
+            if cv_path.exists():
+                logger.info(f"CV path: {cv_path}")
+            else:
+                return ui.markdown(f"### PDF Not Found in {cv_path}")
+            
+            # IFrame src below only understands path relative to the www/ directory
+            cv_path_relative_to_www = str(cv_path)[str(cv_path).index("www") + len("www"):]
+            return ui.tags.iframe(
+                src=cv_path_relative_to_www,
+                width="100%", 
+                height="1200px", 
+                # type="application/pdf"
+            )
