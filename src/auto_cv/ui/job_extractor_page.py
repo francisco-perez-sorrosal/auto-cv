@@ -30,7 +30,6 @@ WWW = os.path.join(DIR, "www")
 
 # Predefined example LinkedIn job URLs
 EXAMPLE_URLS = {
-    "Select an example URL": "",
     "Amazon test": "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=3959722886",
     "Amazon Test 2": "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4070067137",
 }
@@ -85,11 +84,22 @@ def job_extractor_page(input, output, session):
     def job_url_selected():
         selected_url_idx.set(input.select_job_url.get())
         selected_url.set(EXAMPLE_URLS[selected_url_idx.get()])
-        status_message.set(f"Job URL selected: {selected_url_idx.get()} - {selected_url.get()}")
+        status_message.set(f"Job URL selected: ({selected_url_idx.get()}) - {selected_url.get()}")
+        
+        current_url = selected_url.get()
+        # Check cache first
+        if extracted_job_description_cache.exists(current_url):
+            job_stuff = extracted_job_description_cache.get(current_url)
+            job_stuff = make_serializable(job_stuff)  # type: ignore
+            job_details.set(job_stuff)  # type: ignore
+            status_message.set(f"Job description found in cache for ({selected_url_idx.get()}) - {current_url}")
+        else:
+            status_message.set(f"No cached job description found for {current_url}")
+        
 
     # UI code
     
-    ui.h1("Job Extractor Page")
+    ui.h1("Job Extractor")
     
     with ui.card(min_height=150):
         ui.page_opts(fillable=True)
@@ -118,29 +128,8 @@ def job_extractor_page(input, output, session):
             id="select_job_url",
             label="Select a Job URL:",
             choices=EXAMPLE_URLS,
-            selected=EXAMPLE_URLS["Select an example URL"],
+            selected=EXAMPLE_URLS[list(EXAMPLE_URLS.items())[0][0]],
         )
-
-        @reactive.effect
-        @reactive.event(input.search_cache_btn)
-        def search_in_cache():
-            current_url = selected_url.get()
-            print(f"Searching for job details in cache for {current_url}")
-            # Check cache first
-            if extracted_job_description_cache.exists(current_url):
-                job_stuff = extracted_job_description_cache.get(current_url)
-                job_stuff = make_serializable(job_stuff)  # type: ignore
-                job_details.set(job_stuff)  # type: ignore
-                status_message.set(f"Job description found in cache for {current_url}")
-            else:
-                status_message.set(f"No cached job description found for {current_url}")
-        
-        # Button to search in cache
-        ui.input_action_button(
-            id="search_cache_btn", 
-            label="Search in Cache"
-        )
-
 
     with ui.layout_columns(col_widths=(3, 9)):
         
