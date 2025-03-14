@@ -1,16 +1,11 @@
-import concurrent.futures
 import os
-from pathlib import Path
-import threading
-
-
 
 from shiny import reactive
 from shiny.express import input, ui, app_opts, render, output
 from shiny.ui import Tag
 from watchfiles import Change
 
-from auto_cv.utils import find_files_with_extension, run_async_watcher
+from auto_cv.utils import DirWatcher
 from auto_cv.ui.shared import WWW
 
 from .cv_adaptor_page import  cv_adaptor_page
@@ -23,10 +18,6 @@ from .job_extractor_page import get_curated_job_description
 
 from llm_foundation import logger
 
-
-# Execute the extended task logic on a different thread. To use a different
-# process instead, use concurrent.futures.ProcessPoolExecutor.
-pool = concurrent.futures.ProcessPoolExecutor(max_workers=8)
 
 # We need to load the .env file in a function, otherwise there's an weird Shiny-related error
 def load_dotenv():
@@ -57,14 +48,9 @@ def only_added_pdf(change: Change, path: str) -> bool:
     return change == Change.added and path.endswith(allowed_extensions)
 
 
-# Global list to store file changes and a lock for thread safety
-global changed_files
-changed_files = find_files_with_extension(WWW)
-lock = threading.Lock()
-
-# Start the asynchronous file watcher in a daemon thread.
-watcher_thread = threading.Thread(target=run_async_watcher, args=(WWW, changed_files, lock, only_added_pdf), daemon=True)
-watcher_thread.start()
+# Start the asynchronous file watcher in a daemon thread for pdf files in the WWW directory.
+dir_watcher = DirWatcher(WWW, only_added_pdf)
+dir_watcher.start()
 
 raw_tex_filename = get_raw_tex_filename("tex_filename")
 raw_tex_content = get_raw_tex_cv_content("cv_content")
@@ -72,8 +58,6 @@ curated_job_description = get_curated_job_description("curated_job_description")
 
 
 with ui.sidebar():
-    
-    # raw_tex_content = reactive.Value()
         
     cv_to_present = reactive.Value("N/A")
 
@@ -96,15 +80,10 @@ with ui.sidebar():
     
     with ui.card():
 
-        def poll_func():
-            with lock:
-                # Return a copy of the list for rendering.
-                return list(changed_files)
-        
-        @reactive.poll(poll_func=poll_func, interval_secs=1)
+        @reactive.poll(poll_func=dir_watcher.poll_func, interval_secs=1)
         def new_pdfs():
-            cv_to_present.set(changed_files[-1])
-            return list(changed_files)
+            cv_to_present.set(dir_watcher.changed_files[-1])
+            return list(dir_watcher.changed_files)
         
         @render.ui()
         async def file_list() -> Tag:
@@ -115,7 +94,7 @@ with ui.sidebar():
                 return ui.input_select(
                     "selected_pdf",
                     "Select a PDF to display:",
-                    new_pdfs(),
+                    pdfs,
                     multiple=False,
                 )
             else:

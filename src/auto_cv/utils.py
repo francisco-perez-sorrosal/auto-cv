@@ -2,12 +2,40 @@ import asyncio
 from datetime import datetime
 import os
 from pathlib import Path
-from typing import Any
-from watchfiles import Change, DefaultFilter, watch, awatch, run_process, arun_process
+import threading
+from typing import Any, Callable
+from watchfiles import Change, watch, awatch, run_process, arun_process
 
 from llm_foundation import logger
 
 from auto_cv.data_models import JobDetails
+
+class DirWatcher:
+    
+    def __init__(self, directory: Path, filter: Callable):
+        self._lock = threading.Lock()
+        
+        self.directory = directory
+        self.filter = filter
+        self._changed_files = find_files_with_extension(self.directory)
+
+
+    def poll_func(self):
+        with self._lock:
+            # Return a copy of the list for rendering.
+            return list(self._changed_files)
+
+
+    def start(self):
+        self._watcher_thread = threading.Thread(target=run_async_watcher, 
+                                                args=(self.directory, self._changed_files, self._lock, self.filter), 
+                                                daemon=True)
+        self._watcher_thread.start()
+            
+    @property
+    def changed_files(self):
+        return self._changed_files
+
 
 async def directory_watcher(directory, changed_files, lock, filter):
     """
