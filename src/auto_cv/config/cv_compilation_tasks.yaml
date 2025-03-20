@@ -1,0 +1,6 @@
+compile_doc:
+  description: >
+    Read the tex file strictly specified in the path ```{document_path}``` and, without modifying it, compile it.
+  expected_output: >
+    The path of the directory where the document was compiled or an empty string if there was an error.
+  agent: latex_compiler

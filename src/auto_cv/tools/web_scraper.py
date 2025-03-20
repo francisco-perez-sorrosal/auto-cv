@@ -1,24 +1,34 @@
-import logging
-import time
-import os
-from dotenv import load_dotenv
-from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from datetime import datetime
+import os
+import time
+from typing import Any, Dict, Optional, Tuple
 
-import requests
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from llm_foundation import logger
+import requests
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    StaleElementReferenceException,
+    TimeoutException,
+    WebDriverException,
+)
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, TimeoutException, WebDriverException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
-from auto_cv.cache import JobDescriptionCache
+from auto_cv.cache import BasicInMemoryCache
+
 
 # Load environment variables from .env file
-load_dotenv()
+env_loaded: bool = load_dotenv()
+
+if not env_loaded:
+    raise Exception("Failed to load environment variables from .env file")
 
 @dataclass
 class JobPostingExtractor:
@@ -29,26 +39,26 @@ class JobPostingExtractor:
     """
     
     timeout: int = 10
-    _driver: Optional[Any] = None
+    _job_description_cache: BasicInMemoryCache | None = None
+    _driver: WebDriver | None = None
     
     def __post_init__(self):
-        """Initialize logging and setup chrome options"""
-        logging.basicConfig(
-            level=logging.INFO, 
-            format='%(asctime)s - %(levelname)s: %(message)s'
-        )
-        self.logger = logging.getLogger(__name__)
-        
+        """Setup chrome options"""        
         if not self._driver:
             self._driver = self._setup_webdriver()
         
         self._driver.implicitly_wait(self.timeout)
-        self.logger.info("WebDriver initialized")
+        logger.info("WebDriver initialized")
         
-        # Initialize job description cache
-        self._job_description_cache = JobDescriptionCache()
-    
-    def _setup_webdriver(self) -> webdriver:
+        if not self._job_description_cache:
+            self._job_description_cache = BasicInMemoryCache("auto-cv", 
+                                                            "raw_job_description_cache", 
+                                                            "raw_job_descriptions.jsonl",
+                                                            cache_key_name="url")
+        logger.info(f"Raw Description Cache initialized in {self._job_description_cache.cache_file}")
+            
+            
+    def _setup_webdriver(self) -> WebDriver:
         """
         Setup Chrome webdriver with headless mode and common options
         
@@ -64,7 +74,7 @@ class JobPostingExtractor:
             driver = webdriver.Chrome(options=chrome_options)
             return driver
         except Exception as e:
-            self.logger.error(f"Failed to initialize webdriver: {e}")
+            logger.error(f"Failed to initialize webdriver: {e}")
             raise
     
     def _get_linkedin_credentials(self) -> tuple[str, str]:
@@ -120,15 +130,18 @@ class JobPostingExtractor:
             try:
                 # Look for an element that exists only after successful login
                 self._driver.find_element(By.CSS_SELECTOR, "div.feed-identity-module")
-                self.logger.info(f"LinkedIn login successful for user: {username}")
+                logger.info(f"LinkedIn login successful for user: {username}")
             except Exception:
-                self.logger.warning("Login might have failed or requires additional verification")
+                logger.warning("Login might have failed or requires additional verification")
         
         except Exception as e:
-            self.logger.error(f"Failed to perform LinkedIn login: {e}")
+            logger.error(f"Failed to perform LinkedIn login: {e}")
             raise
     
-    def extract_linkedin_job_description(self, url, username: str = None, password: str = None) -> Dict[str, str]:
+    def extract_linkedin_job_description(self, 
+                                         url: str, 
+                                         username: str | None = None, 
+                                         password: str | None = None) -> Dict[str, str]:
         """
         Extract job description from LinkedIn job posting with caching
         
@@ -139,26 +152,21 @@ class JobPostingExtractor:
         
         Returns:
             Dict containing job details or empty dict if extraction fails
-        """
-        # Check cache first
-        cached_job = self._job_description_cache.get(url)
-        if cached_job:
-            self.logger.info(f"Retrieved job description from cache: {url}")
-            return cached_job
+        """        
         
-        # If not in cache, proceed with extraction
         try:
             # Perform login if credentials are provided
             if username and password:
                 try:
                     self._linkedin_login(username, password)
+                    logger.info(f"Logged into LinkedIn as {username}")
                 except Exception as e:
-                    self.logger.error(f"Login failed: {e}")
+                    logger.error(f"Login failed: {e}")
                     return {}
             
             # Navigate to the URL
             self._driver.get(url)
-            self.logger.info(f"Navigated to {url}")
+            logger.info(f"Navigated to {url}")
             
             # Wait for page to load
             time.sleep(5)  # Increased wait time
@@ -171,14 +179,14 @@ class JobPostingExtractor:
             
             job_title = "N/A"
             for selector in job_title_selectors:
-                self.logger.info(f"Trying title selector {selector}")
+                logger.info(f"Trying title selector {selector}")
                 try:
                     elements = self._driver.find_elements(*selector)
                     if elements:
                         job_title = elements[0].text
                         break
                 except Exception as e:
-                    self.logger.warning(f"Title selector {selector} failed: {e}")
+                    logger.warning(f"Title selector {selector} failed: {e}")
             
             # Extract company name
             company_selectors = [
@@ -188,14 +196,14 @@ class JobPostingExtractor:
             
             company_name = "N/A"
             for selector in company_selectors:
-                self.logger.info(f"Trying company selector {selector}")
+                logger.info(f"Trying company selector {selector}")
                 try:
                     elements = self._driver.find_elements(*selector)
                     if elements:
                         company_name = elements[0].text
                         break
                 except Exception as e:
-                    self.logger.warning(f"Company selector {selector} failed: {e}")
+                    logger.warning(f"Company selector {selector} failed: {e}")
 
             # Define multiple potential selectors for job description
             job_desc_selectors = [
@@ -208,7 +216,7 @@ class JobPostingExtractor:
             job_description = "N/A"            
             # Try multiple selectors to find job description
             for selector in job_desc_selectors:
-                self.logger.info(f"Trying selector {selector}")
+                logger.info(f"Trying selector {selector}")
                 try:
                     # Use find_elements to avoid NoSuchElementException
                     elements = self._driver.find_elements(*selector)
@@ -217,23 +225,23 @@ class JobPostingExtractor:
                         job_description = job_desc_element.text
                         break
                 except Exception as e:
-                    self.logger.warning(f"Selector {selector} failed: {e}")
+                    logger.warning(f"Selector {selector} failed: {e}")
             
             job_details = {
                 "title": job_title.strip(),
                 "company": company_name.strip(),
-                "description": job_description.strip(),
+                "raw_description": job_description.strip(),
                 "url": url,
                 "extracted_at": datetime.now().isoformat()
             }
             
             # Save to cache
-            self._job_description_cache.save(job_details)
+            self._job_description_cache.put(job_details)
             
             return job_details
         
         except Exception as e:
-            self.logger.error(f"Job description extraction failed: {e}")
+            logger.error(f"Job description extraction failed: {e}")
             return {}
         finally:
             if self._driver:
@@ -263,14 +271,14 @@ class JobPostingExtractor:
             return {
                 "title": job_title.text.strip() if job_title else "N/A",
                 "company": company_name.text.strip() if company_name else "N/A",
-                "description": job_description.text.strip() if job_description else "N/A"
+                "raw_description": job_description.text.strip() if job_description else "N/A"
             }
         
         except requests.RequestException as e:
-            self.logger.error(f"Request error: {e}")
+            logger.error(f"Request error: {e}")
             return {}
     
-    def extract(self, url: str) -> Dict[str, str]:
+    def extract_raw_info_from(self, url: str) -> Tuple[Dict[str, str], bool]:
         """
         Main extraction method with platform-specific logic using pattern matching
         
@@ -278,17 +286,27 @@ class JobPostingExtractor:
             url (str): The URL to extract job details from
         
         Returns:
-            Extracted job details
+            Extracted job details and whether it was a cache hit or not
         """
+
+        # Check cache first
+        cached_job = self._job_description_cache.get(url)
+        if cached_job:
+            logger.info(f"Retrieved job description from cache: {url}")
+            return cached_job, True
+        
+        # If not in cache, proceed with extraction
         match url:
             case url if "linkedin.com/jobs" in url:
-                return self.extract_linkedin_job_description(url, *self._get_linkedin_credentials())
+                return self.extract_linkedin_job_description(url, *self._get_linkedin_credentials()), False
             case _:
-                return self.extract_generic_job_description(url)
+                return self.extract_generic_job_description(url), False
 
 # Example usage
 if __name__ == "__main__":
     url = "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=3959722886"
+    url = "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4070067137"
+    
     extractor = JobPostingExtractor()
-    job_details = extractor.extract(url)
+    job_details = extractor.extract_raw_info_from(url)
     print(job_details)

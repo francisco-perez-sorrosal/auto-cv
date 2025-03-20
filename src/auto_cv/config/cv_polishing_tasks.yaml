@@ -1,0 +1,16 @@
+polishing:
+  description: >
+    Polish the latex content of the revised CV ```{cv_revision}``` with the user instructions provided in here: ```{user_instructions}```. 
+    As extra content to add, you have access to the original CV content in latex format here: ```{original_cv}```, and to the job description provided here: ```{curated_job_description}```. Under any circumstance, do not remove or change any other content or latex structure from the revised CV unless is explicitly requested by the user instructions. When you have to add a latex structure to the revised CV, do it following the same structure of the original CV for the same or similar section.
+    If the user is telling you to fix a specific section, pay extra attention to the same (or a very similar one) section in the original CV, and fix it following the same structure as the one in the original CV.
+
+  expected_output: >
+    The latex document of the revised CV polished enhanced with the instructions provided by the user, bounded by the facts included in the job description and the original CV content; also respecting the structure of the revised CV with proper latex formatting.
+  agent: cv_polisher
+
+write_doc:
+  description: >
+    Write a latex-based document to the path composed of the target dir ```{target_dir}```, and the concatenation of the filename that results from concatenating the prefix ```{filename_prefix}``` and the extension .tex.
+  expected_output: >
+    A confirmation that the file was written in that path, and where it is located.
+  agent: cv_polisher

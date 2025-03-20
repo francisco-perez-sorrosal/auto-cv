@@ -41,3 +41,7 @@ htmlcov/
 
 # Environment variables
 .env
+
+# App
+docs/
+**/www/generated_cvs/**

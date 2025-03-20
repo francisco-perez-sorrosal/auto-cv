@@ -1,118 +1,170 @@
-import logging
-from typing import Optional, Dict, Any
 import os
-import hashlib
 from pathlib import Path
+from typing import Any
 import jsonlines
 
-class JobDescriptionCache:
+from llm_foundation import logger
+class BasicInMemoryCache:
     """
-    Manages caching of job descriptions to prevent redundant scraping
+    Manages caching of json objects to prevent redundant actions
     """
     
-    def __init__(self, cache_dir: Optional[str] = None):
+    def __init__(self, 
+                app_name: str, 
+                cache_subdir: str, 
+                cache_file: str, 
+                cache_key_name: str,
+                base_cache_dir: str | None = None):
         """
         Initialize the job description cache
         
         Args:
-            cache_dir (str, optional): Directory to store cached job descriptions
+            app_name (str): Name of the application
+            cache_subdir (str): Subdirectory for cache storage
+            cache_file (str): Name of the cache file
+            cache_key_name (str): Name of the key to use for finding elements in the cache
+            base_cache_dir (str, optional): Base directory for cache storage
         """
+        # Store the cache key name
+        self.cache_key_name = cache_key_name
+        
         # Use a default cache directory if not provided
-        if cache_dir is None:
-            cache_dir = os.path.join(
-                os.path.expanduser("~"), 
-                ".auto-cv", 
-                "job_description_cache"
-            )
+        if base_cache_dir is None:
+            base_cache_dir = os.path.expanduser("~")
+        
+        cache_dir = os.path.join(
+            base_cache_dir, 
+            f".{app_name}", 
+            cache_subdir
+        )
         
         # Ensure cache directory exists
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         # Cache file path
-        self.cache_file = self.cache_dir / "job_descriptions.jsonl"
+        self.cache_file = self.cache_dir / cache_file
         
         # In-memory cache for faster lookups
-        self._load_cache()
-    
-    def _generate_url_hash(self, url: str) -> str:
-        """
-        Generate a unique hash for a given URL
-        
-        Args:
-            url (str): Job description URL
-        
-        Returns:
-            str: Unique hash identifier
-        """
-        return hashlib.md5(url.encode()).hexdigest()
-    
-    def _load_cache(self) -> dict:
+        self._cache: dict[str, Any] = self._load_cache()
+
+    def _load_cache(self) -> dict[str, Any]:
         """
         Load existing cache from JSONL file
         
         Returns:
             dict: Cached job descriptions
         """
-        self._cache = {}
+        cache: dict[str, Any] = {}
         
         if not self.cache_file.exists():
-            return self._cache
+            return cache
         
         try:
             with jsonlines.open(self.cache_file, mode='r') as reader:
                 for obj in reader:
-                    self._cache[obj.get('url_hash')] = obj
+                    # Use the specified cache key name to create the cache index
+                    cache_index = obj.get(self.cache_key_name)
+                    if cache_index:
+                        cache[cache_index] = obj
         except Exception as e:
-            logging.error(f"Error loading cache: {e}")
+            logger.error(f"Error loading cache: {e}")
         
-        return self._cache
-    
-    def get(self, url: str) -> dict:
+        logger.info(f"Loaded {len(cache)} items from cache {self.cache_file}")
+        return cache
+
+    @property
+    def keys(self) -> list[str]:
         """
-        Retrieve a cached job description
-        
-        Args:
-            url (str): Job description URL
+        Retrieve all keys from the cache
         
         Returns:
-            dict: Cached job description or None
+            list[str]: List of keys in the cache
         """
-        url_hash = self._generate_url_hash(url)
-        return self._cache.get(url_hash)
-    
-    def save(self, job_description: dict) -> None:
+        return list(self._cache.keys())
+        
+
+    def build_dict_with(self, *obj_attrs: str, sep: str = " - ") -> dict:
         """
-        Save a job description to cache
+        Build a dictionary from the cache based on the specified object attributes
         
         Args:
-            job_description (dict): Job description details
+            *obj_attrs (str): Attributes of the object to use as keys in the dictionary
+        
+        Returns:
+            dict: Dictionary with keys from the cache and values from the specified attributes
         """
-        try:
-            url_hash = self._generate_url_hash(job_description['url'])
-            job_description['url_hash'] = url_hash
-            
-            # Update in-memory cache
-            self._cache[url_hash] = job_description
+        return {key: sep.join(obj.get(attr, "N/A") for attr in obj_attrs) for key, obj in self._cache.items()}
+
+    def is_empty(self) -> bool:
+        """
+        Check if the cache is empty
+        
+        Returns:
+            bool: True if the cache is empty, False otherwise
+        """
+        return not self._cache
+    
+    
+    def get(self, key: str) -> dict[str, Any] | None:
+        """
+        Retrieve a cached item by its key
+        
+        Args:
+            key (str): Key to look up in the cache
+        
+        Returns:
+            Optional[dict]: Cached item or None if not found
+        """
+        return self._cache.get(key)
+    
+
+    def put(self, serializable_structure: dict[str, Any], overwrite: bool = False) -> bool:
+        """
+        Save an item to cache using the specified cache key name
+        
+        Args:
+            serializable_structure (dict): Serializable structure to be cached
+        
+        Returns:
+            bool: True if item was added to cache, False if item already exists
+        """
+        
+        # Get the cache index using the specified cache key name
+        if not self.cache_key_name in serializable_structure:
+            raise KeyError(f"Cache key name '{self.cache_key_name}' not found in serializable structure")
+        
+        cache_index = serializable_structure[self.cache_key_name]        
+        
+        try:                        
+            if self.exists(str(cache_index)):
+                if not overwrite:
+                    logger.warning(f"Value found ({cache_index}) for cache key name '{self.cache_key_name}' but we can't overwrite")
+                    return False
+                logger.warning(f"Item with key {cache_index} already exists in cache. Overwriting...")
+
+            # Update in-memory cache possibly overwriting it
+            self._cache[str(cache_index)] = serializable_structure
             
             # Append to JSONL file
             with jsonlines.open(self.cache_file, mode='a') as writer:
-                writer.write(job_description)
+                writer.write(serializable_structure)
             
-            logging.info(f"Cached job description: {url_hash}")
+            logger.info(f"Cached new item with key: {cache_index}")
+            return True
         
         except Exception as e:
-            logging.error(f"Error saving to cache: {e}")
-    
-    def exists(self, url: str) -> bool:
+            logger.error(f"Error saving to cache: {e}")
+            return False
+                        
+    def exists(self, key_value: str) -> bool:
         """
-        Check if a job description is already cached
+        Check if an item exists in the cache based on the specified cache key
         
         Args:
-            url (str): Job description URL
+            key_value (str): Value of the cache key to look up
         
         Returns:
-            bool: True if cached, False otherwise
+            bool: True if item exists in cache, False otherwise
         """
-        url_hash = self._generate_url_hash(url)
-        return url_hash in self._cache
+        return key_value in self._cache

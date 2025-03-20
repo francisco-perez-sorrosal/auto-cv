@@ -7,6 +7,8 @@ from llm_foundation import logger
 from llm_foundation.agent_types import Persona, Role
 
 from auto_cv.tools.job_scrapper import JobScrapperTool
+from auto_cv.tools.latex_compiler import LatexCompilerTool
+from auto_cv.data_models import JobDetails, LatexContent
 
 @CrewBase
 class JobDescriptionExtractorCrew():
@@ -28,10 +30,19 @@ class JobDescriptionExtractorCrew():
         return self.job_details_extractor_role.get_crew_ai_task("extract_job_details", agent, [JobScrapperTool()])
 
     @task
+    def extract_extra_fields_task(self) -> Task:
+        agent = self.job_details_extractor()
+        logger.info(f"Creating extra job description extractor task for agent {agent}")
+        return self.job_details_extractor_role.get_crew_ai_task("extract_extra_fields_from_job_description", 
+                                                                agent, 
+                                                                context=[self.extract_job_details_task()], 
+                                                                output_json=JobDetails)
+
+    @task
     def format_job_description_task(self) -> Task:
         agent = self.job_details_extractor()
         logger.info(f"Creating job description format task for agent {agent}")
-        return self.job_details_extractor_role.get_crew_ai_task("format_job_description", agent, context=[self.extract_job_details_task()])
+        return self.job_details_extractor_role.get_crew_ai_task("format_job_description", agent, context=[self.extract_job_details_task()], output_json=JobDetails)
 
     @crew
     def crew(self) -> Crew:

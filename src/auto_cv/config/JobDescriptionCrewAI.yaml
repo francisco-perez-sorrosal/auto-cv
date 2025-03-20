@@ -4,8 +4,8 @@ roles:
 
   job_details_extractor:
     name: Job Description Extractor
-    description: You are an expert job seeker that excels in the art of extracting job details from a job 
-      description specified in a given URL.
+    description: You are an expert job seeker that excels in the art of extracting relevant job details 
+      from a job description specified in a given URL with the goal of tuning a good CV/Resume.
     agent_system_message: |
       You are an expert extracting job details from a job description. If any of the details are not provided, 
       you should not attempt to infer them from the job description.
@@ -20,22 +20,39 @@ roles:
         expected_output: |
           A JSON object describing the job details and any other relevant information or metadata.
 
+      extract_extra_fields_from_job_description:
+        name: Extra information extraction
+        description: |
+          From the JSON object passed as input which represents the details of a job posting, 
+          use the 'raw_description' field, to extract the following fields as strings if specific 
+          text exist for them:
+            - Location
+            - Compensation, payment amount, salary or salary range
+            - Hiring Manager
+            - Job ID
+          If the content of any of those fields is not present, put the string "N/A" as its value.
+          Preserve the content for the other fields in the JSON object.
+        expected_output: |
+          A JSON object which contains the same fields as the original plus the new JSON fields
+           and values extracted, that is 'location', 'salary', 'hiring_manager' and 'job_id'.
+
       format_job_description:
         name: Format Description in Job Details
         description: |
-          From the JSON object passed as input, extract the description field,
-          reorganize and reformat its content with Markdown syntax removing non-essential information
-          for the job seeking profile and extracting the relevant content for the following sections 
-          if specific text exist for them:
+          From the JSON object passed as input, use the 'raw_description' field, to summarize, reorganize 
+          and reformat its content with Markdown syntax. Remove any non-essential information
+          relevant to further tune a CV/Resume to specifics of the job information extracted. 
+          Do extract the following subsections if specific text exist for them:
             - Main Goal: Should describe the main task or goal of the job.
+            - Key Responsibilities: Should list the main responsibilities expected from the candidate for the job.
             - Technical Skills: Should list the technical skills required for the job.
             - Technology Stack: Should list the technology stack and/or tools required for the job.
             - Soft Skills: Should list the non-technical skills required for the job.
-            - Miscelanea: Should include any other information that might be relevant from a curricular point of view.
-          If the salary or salary range is in the new Markdown description, add another field to the JSON
-          object called 'salary'.
-          Once the Markdonw reformatting of the description is done and the possible salary extracted, 
-          return the updated JSON object.
+            - Miscelanea: Should include any other information that might be relevant from a curricular point of view. If it is not relevant to fine-tune a CV/Resume, it should not be included.
+          Once the markdown has been extracted, this will be the value of the field 'markdown_description'. 
+          Be very mindful and careful with the markdown content you extract. It must be valid to be included 
+          in a JSON object. Do not change the other fields in the original JSON object passed.
         expected_output: |
-          The JSON object with the job details, including the updated description field and the possible salary
-          extracted, and the other fields left intact.
+          A JSON object with all the original the job detail fields. The value of the field 
+          'markdown_description" will have as a value the updated description field. Leave all 
+          the other fields intact.

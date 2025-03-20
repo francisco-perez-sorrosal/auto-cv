@@ -1,0 +1,28 @@
+read_doc:
+  description: >
+    Read a text document from a file specified in the 
+    path ```{original_cv}``` and return its content as a string.
+  expected_output: >
+    Return the content for the file read.
+  agent: cv_adaptor
+
+latex_summarizer:
+  description: >
+    Tailor the latex content to the job description provided here: ```{curated_job_description}```. To do so, follow the following instructions:
+    1. Do not add new content from the provided job description. Just use it to guide the summarization of the latex document.
+    2. Preserve all professional experience in the latex document.
+    3. For each professional experience in the latex document, include always info related to the achievements.
+    4. Do not invent any content or data that is not already in the latex document.
+    5. Keep complete the education section.
+    6. Maintain a professional tone.
+
+  expected_output: >
+    The latex document tailored to the job description and structured with proper formatting as text.
+  agent: cv_adaptor
+
+write_doc:
+  description: >
+    Write a latex-based document to the path composed of the target dir ```{target_dir}```, and the concatenation of the filename that results from concatenating the prefix ```{filename_prefix}``` and the extension .tex.
+  expected_output: >
+    A confirmation that the file was written in that path, and where it is located.
+  agent: cv_adaptor
